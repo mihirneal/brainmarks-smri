@@ -18,9 +18,9 @@ See `brainmarks_smri.tables` for the table layout.
 - samples.tsv has only what the release gives per subject: site (the folder name) and scanner
   (as named in readme.pdf; the folders only name the three VU Amsterdam scanners). There is no
   age, sex or clinical data, so those template columns are left out.
-- Official split: training (60, 20 per scanner) and test (110). The official test set is our
-  `test`; the training set is split 75/25 into train/val, stratified by scanner (which also
-  orders the test set).
+- Our split: 60/20/20 over all 170 subjects, stratified by scanner, as for the datasets without
+  an official split (and like BraTS 2021). `official_split` keeps the challenge cohort
+  (training 60, test 110).
 - Complete: FLAIR, T1w on the FLAIR grid and the wmh mask (orig/).
 """
 
@@ -112,13 +112,10 @@ def main() -> None:
 
     participants = smp.set_index("participant_id")
     official = subj.cohort.map(COHORT).set_axis(subj.participant_id)
-    in_train = official == "train"
     strata = participants.scanner
-    train_val = tables.stratified_split(strata[in_train], {"train": 0.75, "val": 0.25})
-    split = pd.concat([train_val, official[~in_train]]).reindex(participants.index)
     have = img.assign(desc=img.desc.fillna("n/a")).groupby("participant_id").apply(lambda g: set(zip(g.modality, g.desc)))
     complete = have.map(lambda h: CORE <= h).reindex(participants.index, fill_value=False)
-    splits = tables.make_splits(strata, complete, official=official, split=split)
+    splits = tables.make_splits(strata, complete, official=official)
     tables.write(NAME, img, smp, columns, splits, summary=["scanner"])
 
 

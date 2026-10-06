@@ -12,13 +12,13 @@ The MICCAI 2017 White Matter Hyperintensity (WMH) Segmentation Challenge: 170 su
 
 ## Samples
 
-One sample per subject (170, one session each). The official split is kept: the 110 test subjects (five scanners, two of them unseen in training) are `test`, and the 60 training subjects (20 per scanner) are split 75/25 into train/val, stratified by scanner (`official_split` holds train/test). Complete = FLAIR, T1w on the FLAIR grid and the WMH mask (all 170). The release has no age, sex or clinical data, so `samples.tsv` has no such columns.
+One sample per subject (170, one session each). Split 60/20/20 over all subjects, stratified by scanner, as for the datasets without an official split. `official_split` keeps the challenge cohort (training 60, test 110; the test set has two scanners not in training). Complete = FLAIR, T1w on the FLAIR grid and the WMH mask (all 170). The release has no age, sex or clinical data, so `samples.tsv` has no such columns.
 
 | split | participants | complete | sites | scanner |
 |---|---|---|---|---|
-| train | 45 | 45 | 3 | 3 T GE Signa HDxt 15 / 3 T Philips Achieva 15 / 3 T Siemens TrioTim 15 |
-| val | 15 | 15 | 3 | 3 T GE Signa HDxt 5 / 3 T Philips Achieva 5 / 3 T Siemens TrioTim 5 |
-| test | 110 | 110 | 3 | 1.5 T GE Signa HDxt 10 / 3 T GE Signa HDxt 30 / 3 T Philips Achieva 30 / 3 T Philips Ingenuity 10 / 3 T Siemens TrioTim 30 |
+| train | 102 | 102 | 3 | 1.5 T GE Signa HDxt 6 / 3 T GE Signa HDxt 30 / 3 T Philips Achieva 30 / 3 T Philips Ingenuity 6 / 3 T Siemens TrioTim 30 |
+| val | 34 | 34 | 3 | 1.5 T GE Signa HDxt 2 / 3 T GE Signa HDxt 10 / 3 T Philips Achieva 10 / 3 T Philips Ingenuity 2 / 3 T Siemens TrioTim 10 |
+| test | 34 | 34 | 3 | 1.5 T GE Signa HDxt 2 / 3 T GE Signa HDxt 10 / 3 T Philips Achieva 10 / 3 T Philips Ingenuity 2 / 3 T Siemens TrioTim 10 |
 | total | 170 | 170 | 3 | 1.5 T GE Signa HDxt 10 / 3 T GE Signa HDxt 50 / 3 T Philips Achieva 50 / 3 T Philips Ingenuity 10 / 3 T Siemens TrioTim 50 |
 
 ## Contents
