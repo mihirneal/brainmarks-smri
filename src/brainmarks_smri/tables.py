@@ -7,7 +7,9 @@ Each dataset gets a small set of derived tables in `datasets/<name>/tables/`, bu
     images.tsv     one row per image file: participant_id, session_id, modality, desc, path
                    (+ member, for images inside a tar archive)
     samples.tsv    one row per sample (= scan session): participant_id, session_id, age, sex,
-                   site, then dataset-specific columns (labels/targets) with cleaned values
+                   site (only those the source has, e.g. WMH 2017 has no age or sex; no
+                   placeholder columns), then dataset-specific columns (labels/targets) with
+                   cleaned values
     samples.json   description of every samples.tsv column (BIDS sidecar style)
     splits.tsv     one row per participant: participant_id, split, official_split, rank, complete
 
@@ -210,15 +212,20 @@ def summary_table(samples: pd.DataFrame, splits: pd.DataFrame, targets: list[str
     merged = samples.merge(splits, on="participant_id", validate="many_to_one")
     multi_session = len(samples) > samples.participant_id.nunique()
     multi_site = merged.site.nunique() > 1
+    # WMH 2017 releases no age or sex, so its samples.tsv has neither column; leave them out of
+    # the summary rather than showing placeholder n/a columns
+    demographics = {"age", "sex"} <= set(merged)
     header = ["split", "participants", *(["samples"] if multi_session else []), "complete",
-              "age", "female", *(["sites"] if multi_site else []), *targets]
+              *(["age", "female"] if demographics else []), *(["sites"] if multi_site else []), *targets]
     rows = []
     for name in [*FRACTIONS, "total"]:
         part = merged if name == "total" else merged[merged.split == name]
         people = part.drop_duplicates("participant_id")
-        sex = part.sex.dropna()
+        if demographics:
+            sex = part.sex.dropna()
+            age_sex = [describe(part.age), f"{(sex == 'F').mean():.0%}" if len(sex) else "n/a"]
         row = [name, str(len(people)), *([str(len(part))] if multi_session else []), str(int(people.complete.sum())),
-               describe(part.age), f"{(sex == 'F').mean():.0%}" if len(sex) else "n/a",
+               *(age_sex if demographics else []),
                *([str(part.site.nunique())] if multi_site else []), *(describe(part[t]) for t in targets)]
         rows.append(row)
     lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]

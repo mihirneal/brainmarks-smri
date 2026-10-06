@@ -14,10 +14,10 @@ task_categories:
 size_categories:
   - 10K<n<100K
 extra_gated_prompt: >-
-  This collection redistributes 10 public datasets, each under its own license:
+  This collection redistributes 11 public datasets, each under its own license:
   CC0 (Pixar, CNP, SOOP); CC BY 4.0 + the TCIA Data Usage Policy (UCSF-PDGM,
   UPENN-GBM, BraTS 2021); CC BY-SA 3.0 (IXI); CC BY-NC-SA 3.0 (ABIDE I, OpenBHB);
-  CC BY-NC (ADHD-200). OpenBHB additionally asks users to accept the most
+  CC BY-NC (ADHD-200); CC BY-NC 4.0 (WMH 2017). OpenBHB additionally asks users to accept the most
   restrictive data usage agreement of its source cohorts. Each dataset's README
   states its license, terms and required citations.
 extra_gated_fields:
@@ -33,11 +33,12 @@ configs:
   - {config_name: soop, data_files: soop/tables/samples.tsv}
   - {config_name: ucsf_pdgm, data_files: ucsf_pdgm/tables/samples.tsv}
   - {config_name: upenn_gbm, data_files: upenn_gbm/tables/samples.tsv}
+  - {config_name: wmh, data_files: wmh/tables/samples.tsv}
 ---
 
 # Brainmarks-sMRI
 
-Ten public structural brain MRI datasets for evaluating sMRI foundation models, with classification, regression and segmentation targets. The images are the original releases, unmodified. Each dataset adds harmonized metadata tables and fixed train/val/test splits.
+Eleven public structural brain MRI datasets for evaluating sMRI foundation models, with classification, regression and segmentation targets. The images are the original releases, unmodified. Each dataset adds harmonized metadata tables and fixed train/val/test splits.
 
 ## Datasets
 
@@ -53,6 +54,7 @@ Ten public structural brain MRI datasets for evaluating sMRI foundation models, 
 | [SOOP](https://openneuro.org/datasets/ds004889) | 1,715 | T1w, FLAIR, DWI, ADC, lesion mask | stroke lesion segmentation, discharge mRS, NIHSS | CC0 | 72 GB |
 | [UCSF-PDGM](https://www.cancerimagingarchive.net/collection/ucsf-pdgm/) | 495 | T1w, T1c, T2w, FLAIR, DWI, ADC, tumor mask | IDH, MGMT, 1p/19q, grade, survival, tumor segmentation | CC BY 4.0 | 15.9 GB |
 | [UPENN-GBM](https://www.cancerimagingarchive.net/collection/upenn-gbm/) | 630 | T1w, T1c, T2w, FLAIR, tumor mask | survival, IDH1, MGMT, tumor segmentation | CC BY 4.0 | 25.3 GB |
+| [WMH 2017](https://dataverse.nl/dataset.xhtml?persistentId=doi:10.34894/AECRSD) | 170 | T1w, FLAIR, WMH mask | white matter hyperintensity segmentation | CC BY-NC 4.0 | 8.8 GB |
 
 Each dataset folder's `README.md` has its source, version, license, citation, and split details.
 
@@ -65,7 +67,7 @@ Each dataset folder's `README.md` has its source, version, license, citation, an
   source/            # the original release, verbatim
   tables/
     images.tsv       # one row per image: participant_id, session_id, modality, desc, path
-    samples.tsv      # one row per scan session: participant_id, session_id, age, sex, site, targets...
+    samples.tsv      # one row per scan session: participant_id, session_id, age, sex, site (where the source has them), targets...
     samples.json     # column descriptions, levels and units
     splits.tsv       # one row per participant: participant_id, split, official_split, rank, complete
 ```
@@ -96,7 +98,7 @@ train_50 = train.nsmallest(50, "rank").participant_id
 
 ## License and citation
 
-Datasets and their derivatives are released under their original licenses. Non-commercial terms apply to ABIDE I, ADHD-200 and OpenBHB. If you use a dataset, use the citation given in the README and follow all dataset-specific acknowledgement conditions.
+Datasets and their derivatives are released under their original licenses. Non-commercial terms apply to ABIDE I, ADHD-200, OpenBHB and WMH 2017. If you use a dataset, use the citation given in the README and follow all dataset-specific acknowledgement conditions.
 
 ## Reproducing
 

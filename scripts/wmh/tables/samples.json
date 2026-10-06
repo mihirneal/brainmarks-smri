@@ -1,0 +1,16 @@
+{
+  "participant_id": {
+    "Description": "Person identifier (as in the source, normalized where noted)."
+  },
+  "session_id": {
+    "Description": "Scan session identifier within the participant."
+  },
+  "site": {
+    "Description": "Institute: UMC Utrecht, NUHS Singapore or VU Amsterdam.",
+    "Source": "folder <cohort>/<site>/"
+  },
+  "scanner": {
+    "Description": "MRI scanner, as named in readme.pdf. VU Amsterdam has three; the Philips Ingenuity and the 1.5 T GE are only in the test set.",
+    "Source": "folder <cohort>/<site>/[<scanner>/] (GE3T, Philips_VU .PETMR_01., GE1T5) and readme.pdf"
+  }
+}
