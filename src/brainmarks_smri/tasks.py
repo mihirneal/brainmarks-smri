@@ -46,6 +46,8 @@ class Task:
     classes: list[str | bool] | None = None
     # Segmentation: the mask label values that make up the target region.
     label_values: list[int] | None = None
+    # Segmentation: also score lesion-wise (connected components), for small, many lesions.
+    lesion_metrics: bool = False
 
 
 TASKS: dict[str, Callable[..., Task]] = {}
@@ -344,6 +346,26 @@ def atlas_lesion(subset: Subset = "dev") -> Task:
         ids=ids,
         folds=folds,
         label_values=[1],
+    )
+
+
+@register_task
+def ms3seg_lesion(subset: Subset = "dev") -> Task:
+    """Multiple sclerosis white matter lesions on FLAIR (2D axial, ~7 mm slices). The masks are
+    floats at 0 and ~255 (254.99999994), so any nonzero voxel is lesion. Many small lesions per
+    scan (median ~30), so also scored lesion-wise."""
+    dataset = create_dataset("ms3seg", modality="FLAIR", mask_target="mask_lesion")
+    keep = dataset.samples["mask_lesion_path"].notna()
+    ids, folds = fold_ids(dataset.samples, keep, subset, None)
+    return Task(
+        name="ms3seg_lesion",
+        type="segmentation",
+        subset=subset,
+        dataset=dataset,
+        target="mask_lesion",
+        ids=ids,
+        folds=folds,
+        lesion_metrics=True,
     )
 
 

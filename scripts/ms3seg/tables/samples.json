@@ -1,0 +1,31 @@
+{
+  "participant_id": {
+    "Description": "Person identifier (as in the source, normalized where noted)."
+  },
+  "session_id": {
+    "Description": "Scan session identifier within the participant."
+  },
+  "age": {
+    "Description": "Age at scan.",
+    "Units": "years"
+  },
+  "sex": {
+    "Description": "Sex.",
+    "Levels": {
+      "M": "male",
+      "F": "female"
+    }
+  },
+  "site": {
+    "Description": "Single center (Golgasht Medical Imaging Center), so n/a."
+  },
+  "ms_lesion_volume": {
+    "Description": "Volume of the MS lesion mask.",
+    "Units": "ml",
+    "Source": "abWMH mask"
+  },
+  "ms_lesion_count": {
+    "Description": "Number of MS lesions: 26-connected components of the mask.",
+    "Source": "abWMH mask"
+  }
+}

@@ -239,6 +239,12 @@ def ixi(modality: str = "T1w", **kwargs) -> BrainDataset:
 
 
 @register_dataset
+def ms3seg(modality: str = "FLAIR", **kwargs) -> BrainDataset:
+    """MS3SEG: multiple sclerosis lesion segmentation, 2D axial FLAIR (one 1.5 T center)."""
+    return BrainDataset("ms3seg", modality, **kwargs)
+
+
+@register_dataset
 def oasis1(modality: str = "T1w", **kwargs) -> BrainDataset:
     """OASIS-1: dementia (CDR), T1w (the averaged native-space image). Built on the user side."""
     return BrainDataset("oasis1", modality, **kwargs)

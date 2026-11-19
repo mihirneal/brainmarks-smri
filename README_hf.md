@@ -16,7 +16,7 @@ size_categories:
 extra_gated_prompt: >-
   This collection redistributes public datasets, each under its own license.
   Evaluation: CC0 (CNP, SOOP); CC BY 4.0 + the TCIA Data Usage Policy (UCSF-PDGM,
-  UPENN-GBM, BraTS 2021); CC BY-SA 3.0 (IXI); CC BY-NC-SA 3.0 (ABIDE I, OpenBHB);
+  UPENN-GBM, BraTS 2021); CC BY 4.0 (MS3SEG); CC BY-SA 3.0 (IXI); CC BY-NC-SA 3.0 (ABIDE I, OpenBHB);
   CC BY-NC (ADHD-200). OpenBHB additionally asks users to accept the most
   restrictive data usage agreement of its source cohorts. Pretraining: FOMO300K
   is CC BY-NC-SA 4.0, each of its collections keeps its own license, and its HCP
@@ -61,6 +61,7 @@ Each evaluation dataset has harmonized metadata tables, a fixed dev/test split, 
 | [BraTS 2021](https://www.med.upenn.edu/cbica/brats2021/) | 1,468 | T1w, T1c, T2w, FLAIR, tumor mask | tumor segmentation, MGMT | CC BY 4.0 | 15.8 GB |
 | [CNP](https://openneuro.org/datasets/ds000030) | 265 | T1w | psychiatric diagnosis (4-way) | CC0 | 3.2 GB |
 | [IXI](https://brain-development.org/ixi-dataset/) | 582 | T1w, T2w, PD | age | CC BY-SA 3.0 | 12.8 GB |
+| [MS3SEG](https://doi.org/10.6084/m9.figshare.30393475) | 100 | FLAIR, lesion mask | multiple sclerosis lesion segmentation | CC BY 4.0 | 0.2 GB |
 | [OpenBHB](https://baobablab.github.io/bhb/) | 3,984 | T1w | age (with site debiasing) | CC BY-NC-SA 3.0 | 32 GB |
 | [SOOP](https://openneuro.org/datasets/ds004889) | 1,715 | FLAIR, DWI, ADC, lesion mask | stroke lesion segmentation, discharge mRS, NIHSS | CC0 | 27 GB |
 | [UCSF-PDGM](https://www.cancerimagingarchive.net/collection/ucsf-pdgm/) | 495 | T1w, T1c, T2w, FLAIR, DWI, ADC, tumor mask | IDH, MGMT, 1p/19q, grade, survival, tumor segmentation | CC BY 4.0 | 15.9 GB |

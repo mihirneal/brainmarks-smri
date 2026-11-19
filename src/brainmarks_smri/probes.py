@@ -28,6 +28,7 @@ from brainmarks_smri.metrics import (
     average_precision,
     bootstrap_ci,
     dice,
+    lesion_f1,
     pearson_r,
     voxel_auroc,
 )
@@ -175,6 +176,8 @@ def probe_segmentation(
         "voxel_auroc": np.full(len(samples), np.nan),
         "average_precision": np.full(len(samples), np.nan),
     }
+    if task.lesion_metrics:
+        subject_metrics["lesion_f1"] = np.full(len(samples), np.nan)
     # label share within the brain: the chance level of average precision
     prevalence = np.full(len(samples), np.nan)
     fold_hyperparameters = {
@@ -239,6 +242,8 @@ def probe_segmentation(
                 brain_probabilities, brain_target
             )
             prevalence[position] = float(brain_target.float().mean())
+            if task.lesion_metrics:
+                subject_metrics["lesion_f1"][position] = lesion_f1(predicted, target)
     scored = task.folds >= 0
     metrics = {}
     for name, values in subject_metrics.items():
