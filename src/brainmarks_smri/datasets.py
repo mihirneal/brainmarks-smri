@@ -196,8 +196,8 @@ def adhd200(modality: str = "T1w", **kwargs) -> BrainDataset:
 
 @register_dataset
 def adni(modality: str = "T1w", **kwargs) -> BrainDataset:
-    """ADNI: AD diagnosis, progression and biomarkers, T1w, FLAIR and T2* GRE (with microbleed
-    masks) at y0, y2 and y4. Built on the user side."""
+    """ADNI: AD diagnosis, progression and biomarkers, T1w and FLAIR at y0, y2 and y4, and the
+    y0 T2* GRE with microbleed masks. Built on the user side."""
     return BrainDataset("adni", modality, **kwargs)
 
 

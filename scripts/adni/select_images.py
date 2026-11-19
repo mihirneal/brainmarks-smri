@@ -1,4 +1,5 @@
-"""Choose the ADNI images to convert: one T1w, FLAIR and T2* GRE at baseline, ~2 and ~4 years.
+"""Choose the ADNI images to convert: one T1w and FLAIR at baseline, ~2 and ~4 years, and the
+T2* GRE for microbleeds at baseline.
 
     ADNI_ZIPS=<dir of IDA image zips> ADNIMERGE2=<ADNIMERGE2 tarball> \
         uv run python scripts/adni/select_images.py
@@ -20,8 +21,10 @@ Scan dates are left out (they are DUA data); convert.py reads them from the zips
 - FLAIR: the FLAIR series nearest the visit (within 60 days); drop Mayo quality 4 and coverage
   under 140 mm; prefer Mayo's selected series, then the later series, then the lowest image ID.
 - T2starw: the T2* GRE series that Mayo Clinic read for microbleeds (MAYOADIRL_MRI_MCH, CHOSEN)
-  nearest the visit (within 60 days), then the lowest image ID. The microbleed labels are those
-  reads (microbleeds.py). The GRE series are a separate IDA download, a zip in ADNI_ZIPS.
+  nearest the visit (within 60 days), then the lowest image ID; kept only at y0 of participants
+  enrolled in ADNIGO onward and when the read has a definite microbleed, the scans
+  adni_microbleeds evaluates. The microbleed labels are
+  those reads (microbleeds.py). The GRE series are a separate IDA download, a zip in ADNI_ZIPS.
 """
 
 import io
@@ -162,7 +165,9 @@ def mayo_qc(tarball: Path) -> pd.DataFrame:
     ).drop_duplicates("image_id")
     reads = tables["MAYOADIRL_MRI_MCH"]
     reads = reads[reads.CHOSEN == 1].dropna(subset=["LONI_IMG_ID"])
-    read = pd.DataFrame({"image_id": reads.LONI_IMG_ID.unique(), "mayo_mch_read": True})
+    definite = (reads.TYPE == "MCH") & (reads.STATUS == "Definite")
+    read = definite.groupby(reads.LONI_IMG_ID).sum().rename("microbleeds")
+    read = read.rename_axis("image_id").reset_index().assign(mayo_mch_read=True)
     qc = mriqc.merge(rank, on="series_id", how="left").merge(quality, on="image_id", how="left")
     # outer: most GRE images are not in MRIQC
     qc = qc.merge(read, on="image_id", how="outer")
@@ -244,14 +249,23 @@ def pick_flair(flair: pd.DataFrame, sessions: pd.DataFrame) -> pd.DataFrame:
     return candidates.groupby(["ptid", "session_id"]).head(1).assign(desc=None)
 
 
-def pick_t2starw(t2starw: pd.DataFrame, sessions: pd.DataFrame) -> pd.DataFrame:
+def pick_t2starw(
+    t2starw: pd.DataFrame, sessions: pd.DataFrame, protocol: pd.Series
+) -> pd.DataFrame:
+    """`protocol`: the ADNI phase each participant (PTID) enrolled in."""
     t2starw = t2starw[t2starw.mayo_mch_read & ~t2starw.image_id.isin(EXCLUDE)]
     candidates = sessions.merge(t2starw, on="ptid", suffixes=("_visit", ""))
     candidates["gap_days"] = (candidates.date - candidates.date_visit).dt.days.abs()
     candidates = candidates[candidates.gap_days <= VISIT_GAP_DAYS]
     candidates["image_number"] = candidates.image_id.str[1:].astype(int)
     candidates = candidates.sort_values(["ptid", "session_id", "gap_days", "image_number"])
-    return candidates.groupby(["ptid", "session_id"]).head(1).assign(desc=None)
+    picks = candidates.groupby(["ptid", "session_id"]).head(1)
+    # only what adni_microbleeds evaluates: y0 reads with a definite microbleed, of participants
+    # enrolled in ADNIGO onward (adni_primary)
+    picks = picks[(picks.session_id == "y0") & (picks.microbleeds > 0)]
+    picks = picks[picks.ptid.map(protocol).astype(str) != "ADNI1"]
+    assert (picks.field_strength == 3.0).all()
+    return picks.assign(desc=None)
 
 
 def main() -> None:
@@ -263,11 +277,13 @@ def main() -> None:
     series = read_headers(series, zip_dir)
     t1w = rank_t1w(add_visits(series[series.modality == "T1w"]))
     sessions = pick_sessions(t1w)
+    dx = read_rda(tarball, ["DXSUM"])["DXSUM"].dropna(subset=["ORIGPROT"])
+    protocol = dx.groupby("PTID").ORIGPROT.first()  # as in build_tables.py
     picks = pd.concat(
         [
             pick_t1w(t1w, sessions),
             pick_flair(series[series.modality == "FLAIR"], sessions),
-            pick_t2starw(series[series.modality == "T2starw"], sessions),
+            pick_t2starw(series[series.modality == "T2starw"], sessions, protocol),
         ]
     )
     picks["participant_id"] = "sub-" + picks.ptid.str.replace("_", "")

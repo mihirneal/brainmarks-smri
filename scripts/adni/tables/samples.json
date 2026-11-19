@@ -270,7 +270,7 @@
     "Units": "cm^3"
   },
   "microbleeds": {
-    "Description": "Number of definite cerebral microbleeds on the session's T2* GRE, labelled in its microbleed mask (n/a: no GRE read for microbleeds).",
+    "Description": "Number of definite cerebral microbleeds on the session's T2* GRE, labelled in its microbleed mask (n/a: no GRE kept; only y0 GREs with a definite microbleed are, see select_images.py).",
     "Source": "MAYOADIRL_MRI_MCH (CHOSEN reads, TYPE MCH, STATUS Definite)"
   },
   "fs_qc": {

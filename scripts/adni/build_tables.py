@@ -8,8 +8,9 @@ Table layout: `README_hf.md`.
   visit with a usable T1w), y2 and y4 (visits nearest 2 and 4 years later, within 6 months).
   Image choice: select_images.py.
 - Images per session: T1w (1.5 T in ADNI1, else 3 T), `acq-3T` T1w at ADNI1 visits that also
-  have a 3 T scan, FLAIR (ADNIGO onward), and the T2* GRE that Mayo Clinic read for microbleeds
-  (T2starw, ADNIGO onward) with its microbleed mask (mask, desc `microbleeds`; microbleeds.py).
+  have a 3 T scan, FLAIR (ADNIGO onward), and at y0 the T2* GRE that Mayo Clinic read for
+  microbleeds, when it has a definite one (T2starw, ADNIGO onward), with its microbleed mask
+  (mask, desc `microbleeds`; microbleeds.py).
 - Targets come from ADNIMERGE2 0.1.1, matched to the scan date by participant and the nearest
   record within a window: diagnosis 180 days; cognitive scores 90 days; amyloid and tau PET, CSF
   and plasma 1 year; FreeSurfer and WMH 60 days. Missing codes (negative values) -> n/a.
@@ -442,7 +443,8 @@ def samples() -> tuple[pd.DataFrame, dict[str, dict]]:
         },
         "microbleeds": {
             "Description": "Number of definite cerebral microbleeds on the session's T2* GRE, "
-            "labelled in its microbleed mask (n/a: no GRE read for microbleeds).",
+            "labelled in its microbleed mask (n/a: no GRE kept; only y0 GREs with a definite "
+            "microbleed are, see select_images.py).",
             "Source": "MAYOADIRL_MRI_MCH (CHOSEN reads, TYPE MCH, STATUS Definite)",
         },
         **fs_docs,
