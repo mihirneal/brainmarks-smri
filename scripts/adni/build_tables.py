@@ -8,10 +8,12 @@ Table layout: `README_hf.md`.
   visit with a usable T1w), y2 and y4 (visits nearest 2 and 4 years later, within 6 months).
   Image choice: select_images.py.
 - Images per session: T1w (1.5 T in ADNI1, else 3 T), `acq-3T` T1w at ADNI1 visits that also
-  have a 3 T scan, FLAIR (ADNIGO onward).
+  have a 3 T scan, FLAIR (ADNIGO onward), and the T2* GRE that Mayo Clinic read for microbleeds
+  (T2starw, ADNIGO onward) with its microbleed mask (mask, desc `microbleeds`; microbleeds.py).
 - Targets come from ADNIMERGE2 0.1.1, matched to the scan date by participant and the nearest
   record within a window: diagnosis 180 days; cognitive scores 90 days; amyloid and tau PET, CSF
   and plasma 1 year; FreeSurfer and WMH 60 days. Missing codes (negative values) -> n/a.
+  Microbleeds: the read of the session's T2* GRE itself.
 - Progression: years from the scan to the first later dementia diagnosis, to the first later MCI
   or dementia diagnosis, and years of diagnostic follow-up, so tasks can set their own horizon
   (e.g. pMCI vs sMCI at 3 years, stable CN).
@@ -254,6 +256,20 @@ def manufacturers(sessions: pd.DataFrame) -> pd.Series:
     )
 
 
+def microbleeds(sessions: pd.DataFrame, selected: pd.DataFrame) -> pd.DataFrame:
+    """Number of definite microbleeds in the Mayo Clinic read of each session's T2* GRE."""
+    reads = read_rda("MAYOADIRL_MRI_MCH")
+    reads = reads[(reads.CHOSEN == 1) & (reads.TYPE == "MCH") & (reads.STATUS == "Definite")]
+    counts = reads.groupby("LONI_IMG_ID").size()
+    t2starw = selected.loc[
+        selected.modality == "T2starw", ["participant_id", "session_id", "image_id"]
+    ].copy()
+    t2starw["microbleeds"] = t2starw.image_id.map(counts).fillna(0).astype("Int64")
+    return sessions.merge(
+        t2starw.drop(columns="image_id"), on=["participant_id", "session_id"], how="left"
+    )
+
+
 def samples() -> tuple[pd.DataFrame, dict[str, dict]]:
     selected = pd.read_csv(ROOT / "tables" / "selected_images.tsv", sep="\t", na_values="n/a")
     dates = pd.read_csv(SOURCE / "image_dates.tsv", sep="\t")
@@ -286,6 +302,7 @@ def samples() -> tuple[pd.DataFrame, dict[str, dict]]:
     s = scores(s)
     s = biomarkers(s)
     s, fs_docs = freesurfer(s)
+    s = microbleeds(s, selected)
     s["scan_date"] = s.scan_date.dt.strftime("%Y-%m-%d")
     s["phase"] = s.phase.replace({"UNKNOWN": None})
 
@@ -423,6 +440,11 @@ def samples() -> tuple[pd.DataFrame, dict[str, dict]]:
             "Source": "UCD_WMH TOTAL_WMH",
             "Units": "cm^3",
         },
+        "microbleeds": {
+            "Description": "Number of definite cerebral microbleeds on the session's T2* GRE, "
+            "labelled in its microbleed mask (n/a: no GRE read for microbleeds).",
+            "Source": "MAYOADIRL_MRI_MCH (CHOSEN reads, TYPE MCH, STATUS Definite)",
+        },
         **fs_docs,
     }
     s = s[["participant_id", "session_id", "age", "sex", "site", *columns]]
@@ -431,9 +453,14 @@ def samples() -> tuple[pd.DataFrame, dict[str, dict]]:
 
 def main() -> None:
     img = tables.bids_images(SOURCE, ROOT)
+    # label-microbleeds_mask -> mask, desc microbleeds
+    is_mask = img.modality == "mask"
+    img.loc[is_mask, "desc"] = img.loc[is_mask, "desc"].str.removeprefix("label-")
     smp, columns = samples()
     selected = pd.read_csv(ROOT / "tables" / "selected_images.tsv", sep="\t", na_values="n/a")
-    assert len(img) == len(selected), f"{len(img)} images, {len(selected)} selected"
+    assert (~is_mask).sum() == len(selected), f"{(~is_mask).sum()} images, {len(selected)} selected"
+    n_t2starw = (selected.modality == "T2starw").sum()
+    assert (img.desc[is_mask] == "microbleeds").sum() == is_mask.sum() == n_t2starw
     assert not smp.duplicated(["participant_id", "session_id"]).any()
     assert smp.sex.notna().all() and smp.age.between(40, 100).all()
     assert set(smp.dx.dropna()) <= {"CN", "MCI", "Dementia"}

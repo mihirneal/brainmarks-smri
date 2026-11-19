@@ -1,4 +1,4 @@
-"""Choose the ADNI images to convert: one T1w and one FLAIR at baseline, ~2 and ~4 years.
+"""Choose the ADNI images to convert: one T1w, FLAIR and T2* GRE at baseline, ~2 and ~4 years.
 
     ADNI_ZIPS=<dir of IDA image zips> ADNIMERGE2=<ADNIMERGE2 tarball> \
         uv run python scripts/adni/select_images.py
@@ -19,6 +19,9 @@ Scan dates are left out (they are DUA data); convert.py reads them from the zips
   image ID. Visits with both 1.5 T and 3 T also keep the best 3 T scan (desc `acq-3T`).
 - FLAIR: the FLAIR series nearest the visit (within 60 days); drop Mayo quality 4 and coverage
   under 140 mm; prefer Mayo's selected series, then the later series, then the lowest image ID.
+- T2starw: the T2* GRE series that Mayo Clinic read for microbleeds (MAYOADIRL_MRI_MCH, CHOSEN)
+  nearest the visit (within 60 days), then the lowest image ID. The microbleed labels are those
+  reads (microbleeds.py). The GRE series are a separate IDA download, a zip in ADNI_ZIPS.
 """
 
 import io
@@ -39,14 +42,15 @@ OUT = Path(__file__).parent / "tables" / "selected_images.tsv"
 SERIES_PATH = re.compile(r"ADNI/(\d{3}_S_\d{4,5})/([^/]+)/([\d-]+)_[\d_.]+/I(\d+)/([^/]+\.dcm)")
 T1W = re.compile(r"MP-?RAGE|SPGR", re.IGNORECASE)
 FLAIR = re.compile(r"FLAIR", re.IGNORECASE)
+T2STAR = re.compile(r"T2.*STAR", re.IGNORECASE)
 UNCORRECTED = re.compile(r"_ND(?:_|$)")
 VISIT_GAP_DAYS = 60
 SESSION_YEARS = {"y2": 2.0, "y4": 4.0}
 SESSION_WINDOW_YEARS = 0.5
 MIN_COVERAGE_MM = 140
-# Series that fail to convert: no consistent slice geometry (I820315), or two volumes stacked
-# into one 4D image (I277122, I41449).
-EXCLUDE = {"I820315", "I277122", "I41449"}
+# Series that fail to convert: no consistent slice geometry (I820315), two volumes stacked
+# into one 4D image (I277122, I41449), or the 3 echoes of a GRE in one series (I1487250).
+EXCLUDE = {"I820315", "I277122", "I41449", "I1487250"}
 
 
 def list_series(zip_dir: Path) -> pd.DataFrame:
@@ -77,6 +81,7 @@ def list_series(zip_dir: Path) -> pd.DataFrame:
     series["modality"] = None
     series.loc[series.folder.str.contains(T1W), "modality"] = "T1w"
     series.loc[series.folder.str.contains(FLAIR), "modality"] = "FLAIR"
+    series.loc[series.folder.str.contains(T2STAR), "modality"] = "T2starw"
     return series.dropna(subset=["modality"]).reset_index()
 
 
@@ -131,8 +136,11 @@ def read_rda(tarball: Path, names: list[str]) -> dict[str, pd.DataFrame]:
 
 
 def mayo_qc(tarball: Path) -> pd.DataFrame:
-    """Per image ID: Mayo's selected flag and quality grade, MRIMPRANK rank, protocol phase."""
-    tables = read_rda(tarball, ["MRIQC", "MRIMPRANK", "MAYOADIRL_MRI_QUALITY_ADNI3"])
+    """Per image ID: Mayo's selected flag and quality grade, MRIMPRANK rank, protocol phase, and
+    whether Mayo read the image for microbleeds."""
+    tables = read_rda(
+        tarball, ["MRIQC", "MRIMPRANK", "MAYOADIRL_MRI_QUALITY_ADNI3", "MAYOADIRL_MRI_MCH"]
+    )
     mriqc = tables["MRIQC"].dropna(subset=["LONIImage"])
     mriqc = pd.DataFrame(
         {
@@ -152,7 +160,14 @@ def mayo_qc(tarball: Path) -> pd.DataFrame:
             "mayo_quality": quality.SERIES_QUALITY,
         }
     ).drop_duplicates("image_id")
-    return mriqc.merge(rank, on="series_id", how="left").merge(quality, on="image_id", how="left")
+    reads = tables["MAYOADIRL_MRI_MCH"]
+    reads = reads[reads.CHOSEN == 1].dropna(subset=["LONI_IMG_ID"])
+    read = pd.DataFrame({"image_id": reads.LONI_IMG_ID.unique(), "mayo_mch_read": True})
+    qc = mriqc.merge(rank, on="series_id", how="left").merge(quality, on="image_id", how="left")
+    # outer: most GRE images are not in MRIQC
+    qc = qc.merge(read, on="image_id", how="outer")
+    qc["mayo_mch_read"] = qc.mayo_mch_read.fillna(False).astype(bool)
+    return qc
 
 
 def add_visits(t1w: pd.DataFrame) -> pd.DataFrame:
@@ -229,17 +244,31 @@ def pick_flair(flair: pd.DataFrame, sessions: pd.DataFrame) -> pd.DataFrame:
     return candidates.groupby(["ptid", "session_id"]).head(1).assign(desc=None)
 
 
+def pick_t2starw(t2starw: pd.DataFrame, sessions: pd.DataFrame) -> pd.DataFrame:
+    t2starw = t2starw[t2starw.mayo_mch_read & ~t2starw.image_id.isin(EXCLUDE)]
+    candidates = sessions.merge(t2starw, on="ptid", suffixes=("_visit", ""))
+    candidates["gap_days"] = (candidates.date - candidates.date_visit).dt.days.abs()
+    candidates = candidates[candidates.gap_days <= VISIT_GAP_DAYS]
+    candidates["image_number"] = candidates.image_id.str[1:].astype(int)
+    candidates = candidates.sort_values(["ptid", "session_id", "gap_days", "image_number"])
+    return candidates.groupby(["ptid", "session_id"]).head(1).assign(desc=None)
+
+
 def main() -> None:
     zip_dir = Path(os.environ["ADNI_ZIPS"])
     tarball = Path(os.environ["ADNIMERGE2"])
     series = list_series(zip_dir).merge(mayo_qc(tarball), on="image_id", how="left")
-    print(f"{len(series)} T1w/FLAIR series in the zips:", series.modality.value_counts().to_dict())
+    print(f"{len(series)} series in the zips:", series.modality.value_counts().to_dict())
 
     series = read_headers(series, zip_dir)
     t1w = rank_t1w(add_visits(series[series.modality == "T1w"]))
     sessions = pick_sessions(t1w)
     picks = pd.concat(
-        [pick_t1w(t1w, sessions), pick_flair(series[series.modality == "FLAIR"], sessions)]
+        [
+            pick_t1w(t1w, sessions),
+            pick_flair(series[series.modality == "FLAIR"], sessions),
+            pick_t2starw(series[series.modality == "T2starw"], sessions),
+        ]
     )
     picks["participant_id"] = "sub-" + picks.ptid.str.replace("_", "")
     picks["years"] = picks.years.round(2)

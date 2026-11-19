@@ -27,7 +27,7 @@ from brainmarks_smri.utils import preprocessing
 REPO = Path(__file__).resolve().parents[1]
 
 # Included image modalities. 4D DWI and DTI are skipped.
-MODALITIES = {"T1w", "T1c", "T2w", "FLAIR", "PD", "DWI", "ADC"}
+MODALITIES = {"T1w", "T1c", "T2w", "FLAIR", "T2starw", "PD", "DWI", "ADC"}
 # Sequences co-registered by the source on one grid per session: only the T1w, whose
 # derivatives serve the whole session.
 DATASET_MODALITIES = {"brats2021": {"T1w"}, "ucsf_pdgm": {"T1w"}, "upenn_gbm": {"T1w"}}

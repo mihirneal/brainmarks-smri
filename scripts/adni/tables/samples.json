@@ -269,6 +269,10 @@
     "Source": "UCD_WMH TOTAL_WMH",
     "Units": "cm^3"
   },
+  "microbleeds": {
+    "Description": "Number of definite cerebral microbleeds on the session's T2* GRE, labelled in its microbleed mask (n/a: no GRE read for microbleeds).",
+    "Source": "MAYOADIRL_MRI_MCH (CHOSEN reads, TYPE MCH, STATUS Definite)"
+  },
   "fs_qc": {
     "Description": "FreeSurfer overall QC rating (n/a: not rated).",
     "Source": "UCSFFSX7 OVERALLQC"

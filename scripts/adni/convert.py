@@ -2,13 +2,16 @@
 
     uv run python scripts/adni/convert.py <dir of IDA zips> <selected_images.tsv> <out dir>
 
-Writes `<out>/sub-<id>/ses-<y0|y2|y4>/anat/sub-<id>_ses-<..>[_acq-3T]_<T1w|FLAIR>.nii.gz` and the
-dcm2niix JSON sidecar, and `<out>/image_dates.tsv` (acquisition date per image ID, from the zips). Each series is extracted to a temporary folder, converted and deleted, so
-the zips are never unpacked whole. Existing outputs are skipped.
+Writes `<out>/sub-<id>/ses-<y0|y2|y4>/anat/sub-<id>_ses-<..>[_acq-3T]_<T1w|FLAIR|T2starw>.nii.gz`
+and the dcm2niix JSON sidecar, and `<out>/image_dates.tsv` (acquisition date per image ID, from the
+zips). Each series is extracted to a temporary folder, converted and deleted, so the zips are never
+unpacked whole. Existing outputs are skipped.
 
 dcm2niix writes a second, resampled copy (`_Eq_1`) when the slice spacing is uneven; we keep
-that one, since the plain output cannot represent the spacing. Any other extra output, a missing
-sidecar or a 4D image (stacked acquisitions) is an error.
+that one, since the plain output cannot represent the spacing. A GRE series holding one echo of a
+multi-echo acquisition comes out as `_e<k>`, some with phase, real and imaginary images as well:
+we keep the magnitude image. Any other extra output, a missing sidecar or a 4D image (stacked
+acquisitions) is an error.
 """
 
 import argparse
@@ -24,6 +27,8 @@ import nibabel as nib
 import pandas as pd
 
 SERIES_DIR = re.compile(r"ADNI/[^/]+/[^/]+/(\d{4}-\d{2}-\d{2})_[^/]*/(I\d+)/")
+# dcm2niix outputs besides the magnitude image of a complex GRE series
+NOT_MAGNITUDE = re.compile(r".+_(ph|real|imaginary)\.(json|nii\.gz)")
 CHUNK = 50
 
 
@@ -60,11 +65,17 @@ def convert_series(archive: zipfile.ZipFile, members: list[str], out_stem: Path)
             capture_output=True,
             text=True,
         )
-        outputs = sorted(path.name for path in nifti_dir.iterdir())
-        if "image.nii.gz" in outputs and len(nib.load(nifti_dir / "image.nii.gz").shape) != 3:
-            return f"failed: 4D output {nib.load(nifti_dir / 'image.nii.gz').shape}"
-        if outputs == ["image.json", "image.nii.gz"]:
-            stem = "image"
+        outputs = sorted(
+            path.name for path in nifti_dir.iterdir() if not NOT_MAGNITUDE.fullmatch(path.name)
+        )
+        # the sidecar's stem: image, or image_e<k> for one echo of a multi-echo series
+        base = outputs[0].removesuffix(".json") if outputs else "image"
+        if not re.fullmatch(r"image(_e\d)?", base):
+            base = "image"
+        if f"{base}.nii.gz" in outputs and len(nib.load(nifti_dir / f"{base}.nii.gz").shape) != 3:
+            return f"failed: 4D output {nib.load(nifti_dir / f'{base}.nii.gz').shape}"
+        if outputs == [f"{base}.json", f"{base}.nii.gz"]:
+            stem = base
         elif outputs == ["image.json", "image.nii.gz", "image_Eq_1.nii.gz"]:
             stem = "image_Eq_1"
         else:
@@ -73,13 +84,13 @@ def convert_series(archive: zipfile.ZipFile, members: list[str], out_stem: Path)
         out_stem.parent.mkdir(parents=True, exist_ok=True)
         # Copy under a temporary name, then rename, so an interrupted run leaves no partial file.
         for source, suffix in [
-            (nifti_dir / "image.json", ".json"),
+            (nifti_dir / f"{base}.json", ".json"),
             (nifti_dir / f"{stem}.nii.gz", ".nii.gz"),
         ]:
             partial = out_stem.with_suffix(suffix + ".part")
             shutil.copyfile(source, partial)
             partial.replace(out_stem.with_suffix(suffix))
-        return "ok" if stem == "image" else "ok (Eq_1)"
+        return "ok (Eq_1)" if stem == "image_Eq_1" else "ok"
 
 
 def convert_chunk(

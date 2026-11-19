@@ -1,8 +1,15 @@
 import numpy as np
 import pytest
+import torch
 from sklearn import metrics as sklearn_metrics
 
-from brainmarks_smri.metrics import auroc, bootstrap_ci, bootstrap_score, r2_score
+from brainmarks_smri.metrics import (
+    auroc,
+    bootstrap_ci,
+    bootstrap_score,
+    lesion_f1,
+    r2_score,
+)
 
 
 def test_auroc_matches_sklearn():
@@ -42,3 +49,19 @@ def test_bootstrap_ci_from_bootstrap_score():
     assert bootstrap_ci(np.mean, values, seed=3) == pytest.approx(
         np.percentile(resampled, [2.5, 97.5])
     )
+
+
+def test_lesion_f1():
+    """Two label lesions, one detected (by one overlapping voxel) by one of three predicted
+    lesions; diagonal neighbours are one lesion (26-connectivity)."""
+    target = torch.zeros(10, 10, 10, dtype=torch.bool)
+    target[1, 1, 1] = target[2, 2, 2] = True  # one lesion, diagonal neighbours
+    target[7, 7, 7] = True
+    predicted = torch.zeros_like(target)
+    predicted[2, 2, 2] = predicted[2, 2, 3] = True  # overlaps the first lesion
+    predicted[5, 0, 0] = True
+    predicted[0, 9, 9] = True
+    # sensitivity 1/2, precision 1/3
+    assert lesion_f1(predicted, target) == pytest.approx(2 * (1 / 2) * (1 / 3) / (1 / 2 + 1 / 3))
+    assert lesion_f1(torch.zeros_like(target), target) == 0.0
+    assert np.isnan(lesion_f1(predicted, torch.zeros_like(target)))

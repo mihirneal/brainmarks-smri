@@ -46,6 +46,8 @@ class Task:
     classes: list[str | bool] | None = None
     # Segmentation: the mask label values that make up the target region.
     label_values: list[int] | None = None
+    # Segmentation: also score lesion-wise (connected components), for small, many lesions.
+    lesion_metrics: bool = False
 
 
 TASKS: dict[str, Callable[..., Task]] = {}
@@ -643,6 +645,31 @@ def adni_hippocampus(subset: Subset = "dev") -> Task:
         target="hippocampus_icv",
         ids=ids,
         folds=folds,
+    )
+
+
+@register_task
+def adni_microbleeds(subset: Subset = "dev") -> Task:
+    """Cerebral microbleeds on the T2* GRE (2D axial, 4 mm slices), from the Mayo Clinic reads:
+    each definite microbleed is a 1.5 mm ball around its read point. The scans with microbleeds;
+    most have one or two, a few mm across."""
+    dataset = create_dataset(
+        "adni", modality="T2starw", mask_target="mask_microbleeds", label_values=[1]
+    )
+    samples = dataset.samples
+    keep = adni_primary(samples) & (samples["microbleeds"] > 0)
+    keep &= samples["mask_microbleeds_path"].notna()
+    ids, folds = fold_ids(samples, keep, subset, None)
+    return Task(
+        name="adni_microbleeds",
+        type="segmentation",
+        subset=subset,
+        dataset=dataset,
+        target="mask_microbleeds",
+        ids=ids,
+        folds=folds,
+        label_values=[1],
+        lesion_metrics=True,
     )
 
 

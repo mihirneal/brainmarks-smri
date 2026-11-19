@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 import numpy as np
 import torch
+from scipy import ndimage
 from scipy.stats import rankdata
 from torch import Tensor
 
@@ -50,6 +51,28 @@ def dice(predicted: Tensor, target: Tensor) -> float:
     if total == 0:
         return 1.0
     return float(2 * overlap / total)
+
+
+def lesion_f1(predicted: Tensor, target: Tensor) -> float:
+    """Lesion-wise F1 of two boolean masks: the harmonic mean of the share of label lesions
+    detected and the share of predicted lesions that are true. Lesions are 26-connected components,
+    and one counts when it overlaps the other mask by a voxel. 0 with no predicted lesion, NaN
+    with no label lesion."""
+    predicted = predicted.cpu().numpy()
+    target = target.cpu().numpy()
+    structure = np.ones((3,) * target.ndim, dtype=bool)
+    label_components, n_lesions = ndimage.label(target, structure)
+    predicted_components, n_predicted = ndimage.label(predicted, structure)
+    if n_lesions == 0:
+        return np.nan
+    if n_predicted == 0:
+        return 0.0
+    overlap = predicted & target
+    sensitivity = len(np.unique(label_components[overlap])) / n_lesions
+    precision = len(np.unique(predicted_components[overlap])) / n_predicted
+    if sensitivity + precision == 0:
+        return 0.0
+    return 2 * sensitivity * precision / (sensitivity + precision)
 
 
 def voxel_auroc(probabilities: Tensor, target: Tensor) -> float:
